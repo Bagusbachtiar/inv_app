@@ -22,3 +22,8 @@ Thumbs.db
 PLAN.md
 PROGRESS.md
 TEACHING.md
+
+documentation/
+
+echo "package-lock.json" >> .gitignore
+echo "package.json" >> .gitignore
