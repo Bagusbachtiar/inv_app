@@ -1,6 +1,8 @@
 require('dotenv').config(); // Load environment variables first
 const express = require ('express');
 const { Pool } = require('pg'); // Import the PostgreSQL Pool
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 3000;
@@ -132,6 +134,77 @@ app.delete('/api/inventory/:id', async (req, res) => {
         res.status(500).send({ message: 'Failed to delete inventory item due to a server error.' });
     }
 });
+
+// Endpoint to handle user login and issue a JWT
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).send({ message: "Email and password are required." });
+    }
+
+    try {
+        // 1. Find the user in the database
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const user = result.rows[0];
+
+        if (!user) {
+            return res.status(401).send({ message: "Invalid credentials." });
+        }
+
+        // 2. Compare the submitted password with the hash
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+
+        if (!isMatch) {
+            return res.status(401).send({ message: "Invalid credentials." });
+        }
+
+        // 3. Generate the JWT (Payload should only contain non-sensitive info like ID)
+        const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        // 4. Send the token back to the client
+        res.status(200).json({ token: token, message: "Login successful." });
+
+    } catch (err) {
+        console.error('Login process error:', err.message);
+        res.status(500).send({ message: 'Login failed due to a server error.' });
+    }
+});
+
+// START OF CODE SNIPPET FOR /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).send({ message: "Email and password are required for registration." });
+    }
+
+    try {
+        // 1. Check if user already exists
+        const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (existingUser.rows.length > 0) {
+            return res.status(409).send({ message: "User with this email already exists." });
+        }
+
+        // 2. Hash the password using bcrypt (AUTOMATION STEP)
+        const saltRounds = 10; // Standard practice: 10 rounds is a good default
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // 3. Insert the user and the HASHED password into the database
+        const query = 'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email';
+        const values = [email, passwordHash];
+
+        const result = await pool.query(query, values);
+        
+        // 4. Return the newly created user info (but not the password hash!)
+        res.status(201).json(result.rows[0]);
+
+    } catch (err) {
+        console.error('Registration process error:', err.message);
+        res.status(500).send({ message: 'Registration failed due to a server error.' });
+    }
+});
+// END OF CODE SNIPPET FOR /api/auth/register
 
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
