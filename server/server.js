@@ -8,6 +8,32 @@ const app = express();
 const port = 3000;
 
 
+const authorize = (req, res, next) => {
+    // Check for the token format: Bearer <token_string>
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).send({ message: "Access Denied: No token provided or invalid format." });
+    }
+
+    // Extract the token part
+    const token = authHeader.split(' ')[1];
+
+    try {
+        // Verify the token using the secret key we set in .env
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Attach payload data (user ID/email) to the request object
+        req.user = decoded; 
+        
+        // Crucially, call next() to pass control to the next handler/route
+        next(); 
+    } catch (error) {
+        // Token is invalid (e.g., expired, wrong signature)
+        return res.status(401).send({ message: "Invalid Token. Please log in again." });
+    }
+};
+
 // --- Database Connection Setup ---
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL, // <-- NEAON DB connection string from .env
@@ -26,7 +52,7 @@ app.use(express.json());
 
 
 // Endpoint to create a new inventory item
-app.post('/api/inventory', async (req, res) => {
+app.post('/api/inventory', authorize, async (req, res) => {
     // Destructure data from the request body
     const { name, quantity, price } = req.body; 
 
@@ -53,7 +79,7 @@ app.post('/api/inventory', async (req, res) => {
     }
 });// Endpoint to fetch all inventory items from the database
 
-app.get('/api/inventory', async (req, res) => {
+app.get('/api/inventory', authorize, async (req, res) => {
     try {
         // Query to select all necessary columns from the inventory table
         const result = await pool.query('SELECT id, name, quantity, price FROM inventory ORDER BY id ASC');
@@ -68,7 +94,7 @@ app.get('/api/inventory', async (req, res) => {
 });
 
 // Endpoint to update an existing inventory item (PATCH)
-app.patch('/api/inventory/:id', async (req, res) => {
+app.patch('/api/inventory/:id', authorize, async (req, res) => {
     const itemId = req.params.id;
     const { name, quantity, price } = req.body;
 
@@ -112,7 +138,7 @@ app.patch('/api/inventory/:id', async (req, res) => {
 });
 
 // Endpoint to delete an inventory item
-app.delete('/api/inventory/:id', async (req, res) => {
+app.delete('/api/inventory/:id', authorize, async (req, res) => {
     const itemId = req.params.id;
 
     try {
