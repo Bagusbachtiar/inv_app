@@ -49,7 +49,8 @@ pool.query('SELECT 1 + 1 AS result')
   });
 
 app.use(express.json());
-
+const cors = require('cors');
+app.use(cors());
 
 // Endpoint to create a new inventory item
 app.post('/api/inventory', authorize, async (req, res) => {
@@ -79,12 +80,23 @@ app.post('/api/inventory', authorize, async (req, res) => {
     }
 });// Endpoint to fetch all inventory items from the database
 
-app.get('/api/inventory', authorize, async (req, res) => {
+// --- REPLACEMENT CODE FOR app.get('/api/inventory', ...) ---
+app.get('/api/inventory', async (req, res) => {
     try {
-        // Query to select all necessary columns from the inventory table
-        const result = await pool.query('SELECT id, name, quantity, price FROM inventory ORDER BY id ASC');
+        // Get pagination parameters from the query string, with defaults
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Query to select data with pagination controls
+        const query = 'SELECT id, name, quantity, price FROM inventory ORDER BY id ASC LIMIT $1 OFFSET $2';
         
-        // Send the rows back to the client as JSON
+        // $1 is limit, $2 is offset
+        const values = [limit, offset];
+
+        const result = await pool.query(query, values);
+        
+        // Send the paginated rows back to the client as JSON
         res.status(200).json(result.rows);
     } catch (err) {
         console.error('Database query error while fetching inventory:', err.message);
@@ -92,6 +104,7 @@ app.get('/api/inventory', authorize, async (req, res) => {
         res.status(500).send({ message: 'Error fetching inventory from the database.' });
     }
 });
+// -----------------------------------------------------
 
 // Endpoint to update an existing inventory item (PATCH)
 app.patch('/api/inventory/:id', authorize, async (req, res) => {
