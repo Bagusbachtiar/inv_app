@@ -25,7 +25,7 @@ function App() {
       {/* Conditional rendering based on view state */}
       {view === 'login' && (
         <div>
-          <h2>Login</h2>
+          <h2>Logqin</h2>
           {/* Form components will go here later */}
           <button onClick={() => handleLogin('test@shop.com', 'password123')}>
               Simulate Login
