@@ -11,6 +11,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // State for form inputs
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+
   // Function to fetch inventory data securely
   const fetchInventory = async () => {
     if (!token) {
@@ -60,7 +64,8 @@ function App() {
   }, [token, view]); 
 
   // UPDATED: Login Handler (now sends to the real backend)
-  const handleLogin = async (email, password) => {
+  const handleLogin = async (e) => {
+    e.preventDefault(); // Stop default form submission behavior
     const loginUrl = 'http://localhost:3000/api/auth/login';
     
     try {
@@ -69,7 +74,7 @@ function App() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ email: emailInput, password: passwordInput }), // <--- Sending state values
         });
 
         if (!response.ok) {
@@ -98,21 +103,27 @@ function App() {
       {view === 'login' && (
         <div style={{ border: '1px solid #ccc', padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
           <h2 style={{textAlign: 'center'}}>Login</h2>
-          {/* NOTE: Form inputs are placeholders and require dedicated state management for full functionality */}
-          <div style={{marginBottom: '15px'}}> 
-             <input 
-              type="email" 
-              placeholder="Email" 
-              style={{marginRight: '10px', padding: '5px'}} 
-             />
-             <input 
-              type="password" 
-              placeholder="Password" 
-              style={{padding: '5px'}} 
-             />
-             <button onClick={() => { /* Actual implementation will use form state */ }}>Login</button>
-          </div>
-          <p style={{textAlign: 'center'}}>*(Note: Form fields need dedicated state management for final version)*</p>
+          {/* FORM IS NOW FULLY CONNECTED TO STATE AND THE HANDLER */}
+          <form onSubmit={handleLogin}>
+             <div style={{marginBottom: '15px'}}>
+                <input 
+                  type="email" 
+                  placeholder="Email" 
+                  value={emailInput} 
+                  onChange={(e) => setEmailInput(e.target.value)} 
+                  style={{marginRight: '10px', padding: '5px'}} 
+                />
+                <input 
+                  type="password" 
+                  placeholder="Password" 
+                  value={passwordInput} 
+                  onChange={(e) => setPasswordInput(e.target.value)} 
+                  style={{padding: '5px'}} 
+                />
+                <button type="submit">Login</button>
+             </div>
+             <p style={{textAlign: 'center'}}>*(This form is now functional!)*</p>
+          </form>
         </div>
       )}
       
