@@ -83,24 +83,29 @@ app.post('/api/inventory', authorize, async (req, res) => {
 // --- REPLACEMENT CODE FOR app.get('/api/inventory', ...) ---
 app.get('/api/inventory', async (req, res) => {
     try {
-        // Get pagination parameters from the query string, with defaults
+        // Get parameters: Pagination, Search, with sensible defaults
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
+        const searchTerm = req.query.search ? `%${req.query.search}%` : '%'; // Prepare LIKE pattern
 
-        // Query to select data with pagination controls
-        const query = 'SELECT id, name, quantity, price FROM inventory ORDER BY id ASC LIMIT $1 OFFSET $2';
-        
-        // $1 is limit, $2 is offset
-        const values = [limit, offset];
+        // Base query structure for searching
+        let query = 'SELECT id, name, quantity, price FROM inventory WHERE name ILIKE $1 ORDER BY id ASC LIMIT $2 OFFSET $3';
+        let values = [searchTerm, limit, offset];
 
+        // If no search term is provided, remove the WHERE clause and change the query structure
+        if (searchTerm === '%' || searchTerm === null) {
+            query = 'SELECT id, name, quantity, price FROM inventory ORDER BY id ASC LIMIT $1 OFFSET $2';
+            values = [limit, offset];
+        }
+
+        // Execute the query
         const result = await pool.query(query, values);
         
-        // Send the paginated rows back to the client as JSON
+        // Send the results back to the client as JSON
         res.status(200).json(result.rows);
     } catch (err) {
         console.error('Database query error while fetching inventory:', err.message);
-        // If the DB fails for any reason, we return a 500 Internal Server Error
         res.status(500).send({ message: 'Error fetching inventory from the database.' });
     }
 });
