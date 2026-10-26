@@ -14,6 +14,9 @@ function App() {
   // State for form inputs
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  
+  // State for search functionality
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Function to fetch inventory data securely
   const fetchInventory = async () => {
@@ -25,7 +28,15 @@ function App() {
     setError(null);
     
     try {
-        const response = await fetch('http://localhost:3000/api/inventory', {
+        // Construct URL with pagination AND search term
+        let url = 'http://localhost:3000/api/inventory';
+        
+        // Append search term if present
+        if (searchTerm) {
+            url = `${url}?search=${encodeURIComponent(searchTerm)}`;
+        }
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`, // <-- Token is included here!
@@ -56,12 +67,12 @@ function App() {
     }
   };
 
-  // Effect runs when the token changes or when the view changes
+  // Effect runs when the token changes, view changes, OR search term changes
   useEffect(() => {
     if (token && view === 'dashboard') {
         fetchInventory();
     }
-  }, [token, view]); 
+  }, [token, view, searchTerm]); 
 
   // UPDATED: Login Handler (now sends to the real backend)
   const handleLogin = async (e) => {
@@ -74,7 +85,7 @@ function App() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email: emailInput, password: passwordInput }), // <--- Sending state values
+            body: JSON.stringify({ email: emailInput, password: passwordInput }),
         });
 
         if (!response.ok) {
@@ -122,7 +133,7 @@ function App() {
                 />
                 <button type="submit">Login</button>
              </div>
-             <p style={{textAlign: 'center'}}>*(This form is now functional!)*</p>
+             <p style={{textAlign: 'center'}}>*(This form is now fully functional!)*</p>
           </form>
         </div>
       )}
@@ -131,25 +142,50 @@ function App() {
         <div style={{ padding: '20px' }}>
           <h2 style={{textAlign: 'center'}}>Inventory Dashboard</h2>
           
+          {/* Search Bar Integration */}
+          <div style={{marginBottom: '20px'}}> 
+            <input 
+                type="text" 
+                placeholder="Search inventory by name..."
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{padding: '8px', width: '300px', marginRight: '10px'}}
+            />
+            <button onClick={() => fetchInventory()}>Apply Filters</button>
+          </div>
+          
           {/* Display Statuses */}
           {loading && <p style={{color: 'blue', textAlign: 'center'}}>Loading Inventory...</p>}
           {error && <p style={{color: 'red', textAlign: 'center'}}>ERROR: {error}</p>}
           
-          {/* Display Inventory */}
+          {/* Display Inventory - TABLE FORMATTING */}
           {!loading && !error && inventory.length > 0 && (
             <>
-                <h3 style={{textAlign: 'center'}}>Current Inventory Items ({inventory.length})</h3>
-                <ul style={{listStyle: 'none', padding: 0, textAlign: 'left'}}> 
-                    {inventory.map(item => (
-                        <li key={item.id} style={{borderBottom: '1px dotted #eee', padding: '10px 0'}}> 
-                            <strong style={{fontSize: '1.1em'}}>{item.name}</strong> | Qty: {item.quantity} | Price: ${item.price} 
-                        </li>
-                    ))}
-                </ul>
+                <h3 style={{textAlign: 'center'}}>Inventory Results ({inventory.length} found)</h3>
+                <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '20px'}}> 
+                    <thead style={{borderBottom: '2px solid #333'}}> 
+                        <tr>
+                            <th style={{padding: '10px', textAlign: 'left'}}>ID</th>
+                            <th style={{padding: '10px', textAlign: 'left'}}>Name</th>
+                            <th style={{padding: '10px', textAlign: 'center'}}>Quantity</th>
+                            <th style={{padding: '10px', textAlign: 'right'}}>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {inventory.map(item => (
+                            <tr key={item.id} style={{borderBottom: '1px dotted #eee'}}> 
+                                <td style={{padding: '10px'}}>{item.id}</td>
+                                <td style={{padding: '10px'}}>{item.name}</td>
+                                <td style={{padding: '10px', textAlign: 'center'}}>{item.quantity}</td>
+                                <td style={{padding: '10px', textAlign: 'right'}}>${item.price}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </>
           )}
           {!loading && !error && inventory.length === 0 && (
-             <p style={{textAlign: 'center'}}>Inventory is empty. Use the Register/Create endpoints to add items!</p>
+             <p style={{textAlign: 'center'}}>No inventory found matching your criteria.</p>
           )}
         </div>
       )}
